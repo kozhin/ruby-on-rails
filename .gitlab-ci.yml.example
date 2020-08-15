@@ -1,0 +1,137 @@
+#
+# CI Variables Declaresion
+#
+variables:
+  IMAGE_NAME: "docker/ruby-on-rails/rails"
+  RAILS_VERSION: "6.0.3.2"
+  NGINX_VERSION: "1.18.0"
+  PASSENGER_VERSION: "6.0.6"
+
+#
+# CI Stages declaration
+#
+stages:
+  - sync
+  - build:development
+  - build:production
+  - deploy
+  - cleanup
+
+#
+# Sync action
+#
+Sync repo:
+  stage: sync
+  script:
+    - echo "Just a sync action"
+  only:
+    - tags
+
+#
+# Build action
+#
+Dev Ruby on Rails:
+  stage: build:development
+  script:
+    - echo "Building Ruby on Rails release v$RAILS_VERSION.."
+    - docker build \
+      --build-arg RAILS_VERSION=$RAILS_VERSION \
+      --build-arg NGINX_VERSION=$NGINX_VERSION \
+      --build-arg PASSENGER_VERSION=$PASSENGER_VERSION \
+      -t $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-dev \
+      -f dev.Dockerfile .
+    - docker tag $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-dev $CI_REGISTRY/$IMAGE_NAME:latest-dev
+    - echo "Completed"
+  only:
+    - tags
+
+Dev Ruby on Rails & NodeJS:
+  stage: build:development
+  script:
+    - echo "Building Ruby on Rails release v$RAILS_VERSION with NodeJS.."
+    - docker build \
+      --build-arg RAILS_VERSION=$RAILS_VERSION \
+      --build-arg NGINX_VERSION=$NGINX_VERSION \
+      --build-arg PASSENGER_VERSION=$PASSENGER_VERSION \
+      -t $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs-dev \
+      -f dev.nodejs.Dockerfile .
+    - docker tag $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs-dev $CI_REGISTRY/$IMAGE_NAME:latest-nodejs-dev
+    - echo "Completed"
+  only:
+    - tags
+
+Prod Ruby on Rails:
+  stage: build:production
+  script:
+    - echo "Building Ruby on Rails release v$RAILS_VERSION.."
+    - docker build \
+      --build-arg RAILS_VERSION=$RAILS_VERSION \
+      --build-arg NGINX_VERSION=$NGINX_VERSION \
+      --build-arg PASSENGER_VERSION=$PASSENGER_VERSION \
+      -t $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION \
+      -f prod.Dockerfile .
+    - docker tag $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION $CI_REGISTRY/$IMAGE_NAME:latest
+    - echo "Completed"
+  only:
+    - tags
+
+Prod Ruby on Rails & NodeJS:
+  stage: build:production
+  script:
+    - echo "Building Ruby on Rails release v$RAILS_VERSION with NodeJS.."
+    - docker build \
+      --build-arg RAILS_VERSION=$RAILS_VERSION \
+      --build-arg NGINX_VERSION=$NGINX_VERSION \
+      --build-arg PASSENGER_VERSION=$PASSENGER_VERSION \
+      -t $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs \
+      -f prod.nodejs.Dockerfile .
+    - docker tag $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs $CI_REGISTRY/$IMAGE_NAME:latest-nodejs
+    - echo "Completed"
+  only:
+    - tags
+
+#
+# Deploy action
+#
+Dev deploy:
+  stage: deploy
+  script:
+    - echo "Delivering images..."
+    - docker push $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-dev
+    - docker push $CI_REGISTRY/$IMAGE_NAME:latest-dev
+    - docker push $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs-dev
+    - docker push $CI_REGISTRY/$IMAGE_NAME:latest-nodejs-dev
+    - echo "Completed"
+  only:
+    - tags
+
+Prod deploy:
+  stage: deploy
+  script:
+    - echo "Delivering images..."
+    - docker push $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION
+    - docker push $CI_REGISTRY/$IMAGE_NAME:latest
+    - docker push $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs
+    - docker push $CI_REGISTRY/$IMAGE_NAME:latest-nodejs
+    - echo "Completed"
+  only:
+    - tags
+
+#
+# Clean up action
+#
+Clean up:
+  stage: cleanup
+  script:
+    - echo "Cleaning up images..."
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-dev
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:latest-dev
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs-dev
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:latest-nodejs-dev
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:latest
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:$RAILS_VERSION-nodejs
+    - docker rmi $CI_REGISTRY/$IMAGE_NAME:latest-nodejs
+    - echo "Completed"
+  only:
+    - tags
